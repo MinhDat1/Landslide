@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+  integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="container-chart">
+      <canvas id="myChart" style="width: 100%; max-width: 600px;"></canvas>
+    </div>
+    <div class="container-alert" style="visibility: hidden;">
+      <div class="alert alert-success" role="alert">
+        The data updated at: <span class="time"></span> <br />
+        <center>Va thong bao da dc gui ve email cua ban!!!</center>
+      </div>
+    </div>
+  </div>
+  
+
+  <script>
+    let chartData = [];
+    let dataInit, updaterTime = new Date();
+    const alertNotice = document.getElementsByClassName("container-alert")[0];
+    const alertTime = document.getElementsByClassName("time")[0];
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+      const sendEmailApp = async () => await fetch("http://localhost:3000/api/sendemail");
+
+      async function updateChart() {
+        const response = await fetch("http://localhost:3000/api/landside");
+        const data = await response.json();
+
+        chartData = [];
+
+        for (let item of data) {
+          chartData.push({
+            Time: new Date(item.Time).toLocaleTimeString(),
+            Moisture: item.Moisture,
+            Tilt: item.Tilt,
+          });
+        }
+
+        const { Moisture, Tilt } = chartData[0];
+        if (Moisture > 0.47 && Tilt > 0 &&  dataInit?.Time !== chartData[0]?.Time) {
+          console.log(123);
+          sendEmailApp();
+        }
+
+
+        alertNotice.style.visibility = "visible";
+        alertTime.innerHTML = updaterTime;
+        if (dataInit?.Time !== chartData[0]?.Time || !dataInit) {
+          updateChartWithData();
+          updaterTime = new Date();
+        }
+        dataInit = chartData[0]
+      } 
+
+      function updateChartWithData() {
+        
+        let valuesData = chartData;
+
+        if (!dataInit && chartData) dataInit = chartData[0];
+
+        if (dataInit?.Time !== chartData[0]?.Time) {
+          valuesData = chartData; 
+        };
+
+        let xValues = valuesData?.map(entry => entry.Time);
+
+        const moistureDataset = {
+          label: "Moisture",
+          data: chartData.map((entry) => entry.Moisture),
+          borderColor: "#dc3545",
+          fill: false,
+        };
+
+        const tiltDataset = {
+          label: "Tilt",
+          data: chartData.map((entry) => entry.Tilt),
+          borderColor: "#198754",
+          fill: false,
+        };
+
+        new Chart("myChart", {
+          type: "line",
+          data: {
+            labels: xValues,
+            datasets: [moistureDataset, tiltDataset],
+          },
+          options: {
+            legend: { display: true },
+          },
+        });
+      }
+      updateChartWithData();
+
+      // Fetch and update the chart every 5 seconds (adjust the interval as needed)
+      setInterval(updateChart, 5000);
+
+    });
+
+  </script>
+</body>
+
+</html>
